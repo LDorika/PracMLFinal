@@ -1,0 +1,106 @@
+---
+title: "Predicting  Excercise Quality"
+author: "Pannel Chindalo"
+date: "February 4, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+In this project, we aim to predict the effectiveness of exercises for fitness. Two sets of data are provided, the "Train Data" and "Test Data" sets.  Hence the proposition was to train the "Train Data" to produce an algorithm that could be used on the "Test Data". The Random Forest model provided 99.42% accuracy on the validation data (A portion of the data that was split from the Train Data at 30%). The estimate algorithm of-the- out of sample error was 0.0064. This model was applied on the "Test Data" to predict the answers on the 20 quiz questions, which produced a 100% accuracy. By way of modeling the Random Forest grouped the data in five group points ( given in the "Classe" factors) and computed shortest distance for data points to the group points.
+
+```{r}
+library (caret)
+library(rpart)
+library(rpart.plot)
+library(randomForest)
+library(corrplot)
+```
+
+##Step One
+## Process of preparing the data
+```{r}
+trainRaw <- read.csv("./data/pml-training.csv")
+testRaw <- read.csv("./data/pml-testing.csv")
+dim(trainRaw)
+dim(testRaw)
+```
+
+The downed loaded datasets initially had the following observations and variables
+dim(TrainRaw)
+# [1] 19622   160
+dim(TestRaw)
+# [1]  20 160
+
+##Step Two
+The process of cleaning the data sets required removing columns with NA missing values. And as well removing the redundant columns of the accelerometers. With the "Train Data" and "Test Data" cleaned and merged with the Classe factors. The clean data set was reduced to: 19622 observations and 53 variables. The test data set  was reduced to: 20 observations and 53 variables. 
+```{r}
+trainRaw <- trainRaw[, colSums(is.na(trainRaw)) == 0] 
+testRaw <- testRaw[, colSums(is.na(testRaw)) == 0] 
+```
+
+Code for Cleaning the two data sets:
+```{r}
+classe <- trainRaw$classe
+trainRemove <- grepl("^X|timestamp|window", names(trainRaw))
+trainRaw <- trainRaw[, !trainRemove]
+trainCleaned <- trainRaw[, sapply(trainRaw, is.numeric)]
+trainCleaned$classe <- classe
+testRemove <- grepl("^X|timestamp|window", names(testRaw))
+testRaw <- testRaw[, !testRemove]
+testCleaned <- testRaw[, sapply(testRaw, is.numeric)]
+```
+
+##Step Three
+##Training the Data - Classification
+The cleaned Train Data set is split into two sets of categorized as the training set (70%) and validation set (30%) by using the caret library.
+#Code for splitting the data:
+```{r}
+inTrain <- createDataPartition(trainCleaned$classe, p=0.70, list=F)
+trainData <- trainCleaned[inTrain, ]
+validationData <- trainCleaned[-inTrain, ]
+```
+
+
+
+##Step Four
+##Predictive Modelling - Using the Random Forest library.
+The random forest model is automated in itself, as it selects important variables from trainData. The optimal value of the model produced  was  mtry = 2 based on accuracy of 0.9912642.
+```{r}
+controlRf <- trainControl(method="cv", 5)
+modelRf <- train(classe ~ ., data=trainData, method="rf", trControl=controlRf, ntree=250)
+modelRf
+```
+
+
+##Step Five
+##Cross validating to measure the performance of the model.
+This process confirms an accuracy level of 99.42% and error an estimated out-of sample error of 0.58%. 
+```{r}
+predictRf <- predict(modelRf, validationData)
+confusionMatrix(validationData$classe, predictRf)
+```
+```{r}
+accuracy <- postResample(predictRf, validationData$classe)
+accuracy
+```
+```{r}
+error_sample <- 1 - as.numeric(confusionMatrix(validationData$classe, predictRf)$overall[1])
+error_sample
+```
+
+
+## Step Six
+Predicting on the original Test Data that was cleaned in step 1.
+```{r}
+Quiz_testresults <- predict(modelRf, testCleaned[, -length(names(testCleaned))])
+Quiz_testresults
+```
+
+
+
+
